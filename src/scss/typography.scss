@@ -1,0 +1,34 @@
+.h1 {
+    font-size: 3.2rem;
+    font-weight: 700;
+
+    &--center {
+        text-align: center;
+    }
+}
+
+.h2 {
+    font-size: 2.4rem;
+    font-weight: 500;
+
+    &--center {
+        text-align: center;
+    }
+}
+
+.small {
+    font-size: 1.4rem;
+
+    &--bold {
+        font-weight: 600;
+    }
+}
+
+.label {
+    color: $secondary-text;
+    font-size: 1.4rem;
+
+    &--bold {
+        font-weight: 600;
+    }
+}
