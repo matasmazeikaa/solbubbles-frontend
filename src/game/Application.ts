@@ -14,7 +14,6 @@ import { useGameStore } from "@/stores/game";
 import { ref } from "vue";
 import type { MassFoodState } from "./StateTypes/MassFoodState";
 import type { TopPlayerState } from "./StateTypes/TopPlayerState";
-import type { Virus } from "@/types";
 import { useGame } from "@/hooks/useGame";
 import { useBalanceStore } from "@/stores/balanceStore";
 import { useWalletStore } from "@/stores/walletStore";
@@ -273,7 +272,7 @@ export class Application {
     graphics.endFill();
   }
 
-  drawVirus(graphics: PIXI.Graphics, virus: Virus) {
+  drawVirus(graphics: PIXI.Graphics, virus: any) {
     graphics?.clear();
 
     graphics.lineStyle(virus.strokeWidth, virus.stroke);

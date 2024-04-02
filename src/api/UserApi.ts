@@ -1,4 +1,3 @@
-import type { User } from "@/types";
 import { api } from "./api";
 
 interface UserLogin {
@@ -20,7 +19,6 @@ interface Transaction {
 const USER_ROUTE = `/user`;
 const USER_LOGIN_ROUTE = `${USER_ROUTE}/login`;
 const USER_WITHDRAW_ROUTE = `${USER_ROUTE}/sign-withdraw`;
-const USER_DEPOSIT_SPL_TOKENS = `${USER_ROUTE}/process-transaction`;
 const USER_GET_NONCE = `${USER_ROUTE}/nonce`;
 
 export const loginUserApi = (user: UserLogin) =>

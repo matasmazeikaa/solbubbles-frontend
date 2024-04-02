@@ -21,20 +21,17 @@
 </template>
 
 <script setup lang="ts">
-import { formatAddress, roundTokensFromLamports } from "@/utils/format";
+import { formatAddress } from "@/utils/format";
 import { useGame } from "@/hooks/useGame";
 import Ping from "./Ping.vue";
 import { computed } from "vue";
-import type { TopPlayer } from "@/types";
 import { TOKEN_CONFIG } from "@/constants";
 
 const { game } = useGame();
 
 const leaderboard = computed(() => {
-  console.log(game.value?.leaderboard as unknown as TopPlayer[]);
-  return (
-    (game.value?.leaderboard as unknown as TopPlayer[]) ?? ([] as TopPlayer[])
-  );
+  console.log(game.value?.leaderboard);
+  return game.value?.leaderboard as any;
 });
 </script>
 

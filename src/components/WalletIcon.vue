@@ -1,15 +1,11 @@
-<script lang="ts">
-import { defineComponent, PropType, toRefs } from "vue";
+<script lang="ts" setup>
 import type { Wallet } from "@/types";
 
-export default defineComponent({
-  props: {
-    wallet: Object as PropType<Wallet>,
-  },
-  setup(props) {
-    return toRefs(props);
-  },
-});
+interface Props {
+  wallet: Wallet | undefined;
+}
+
+defineProps<Props>();
 </script>
 
 <template>

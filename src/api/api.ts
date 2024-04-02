@@ -1,5 +1,4 @@
 import { getJWT } from "@/utils/tokens";
-import router, { LOGIN_ROUTE } from "@/router";
 import axios from "axios";
 import { useWalletStore } from "@/stores/walletStore";
 import { useToast } from "vue-toast-notification";

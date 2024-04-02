@@ -7,11 +7,11 @@ import { useWalletStore } from "@/stores/walletStore";
 import { storeToRefs } from "pinia";
 
 interface Props {
-  featured: number;
-  container: string;
-  buttonClass: string;
-  logo: string;
-  dark: boolean;
+  featured?: number;
+  container?: string;
+  buttonClass?: string;
+  logo?: string;
+  dark?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -98,7 +98,7 @@ const scope = {
               :style="{ pointerEvents: dropdownOpened ? 'none' : 'auto' }"
               :aria-expanded="dropdownOpened"
               :title="publicKeyBase58"
-              :disabled="disabled || walletStore.connecting"
+              :disabled="walletStore.connecting"
               @click="openDropdown"
             >
               <wallet-icon :wallet="wallet"></wallet-icon>
