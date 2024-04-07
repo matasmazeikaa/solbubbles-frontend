@@ -2,9 +2,6 @@ import * as PIXI from "pixi.js";
 import { Group, Layer, Stage } from "@pixi/layers";
 import { Viewport } from "pixi-viewport";
 import { Room, Client } from "colyseus.js";
-import { FOOD_CONFIG, PLAYER_CONFIG } from "@/constants";
-import { hslToHex } from "@/utils/hslToHex";
-import { Graphics } from "pixi.js";
 import type { GameState } from "@/game/StateTypes/index";
 import type { Player as PlayerState } from "@/game/StateTypes/Player";
 import type { CellState } from "@/game/StateTypes/CellState";
@@ -17,15 +14,13 @@ import type { TopPlayerState } from "./StateTypes/TopPlayerState";
 import { useGame } from "@/hooks/useGame";
 import { useBalanceStore } from "@/stores/balanceStore";
 import { useWalletStore } from "@/stores/walletStore";
+import { Simple } from "pixi-cull";
+import { useRouter } from "vue-router";
 
 const WORLD_SIZE = 5000;
 
-const MAX_FPS_MS = 1000 / 60;
-
-const lerp = function (value1: number, value2: number, amount: number) {
-  amount = amount < 0 ? 0 : amount;
-  amount = amount > 1 ? 1 : amount;
-  return value1 + (value2 - value1) * amount;
+const lerp = function (start: number, end: number, t: number) {
+  return start * (1 - t) + end * t;
 };
 
 const GAME_ZINDEXES = {
@@ -38,11 +33,12 @@ const { lastActionTick, roomSplTokenEntryFee } = useGame();
 
 export class Application {
   players: { [id: string]: PlayerState } = {};
-  playerCellsGraphics: { [id: string]: PIXI.Graphics } = {};
+  playerCellsGraphics: { [id: string]: PIXI.Sprite } = {};
+  playerTextGraphics: { [id: string]: PIXI.Text } = {};
   playerCells: { [id: string]: CellState } = {};
-  food: { [id: string]: PIXI.Graphics } = {};
-  virus: { [id: string]: PIXI.Graphics } = {};
-  massFood: { [id: string]: PIXI.Graphics } = {};
+  food: { [id: string]: PIXI.Sprite } = {};
+  virus: { [id: string]: PIXI.Sprite } = {};
+  massFood: { [id: string]: PIXI.Sprite } = {};
   isPlayerJoined = false;
   reenviar = true;
   stage: PIXI.Container;
@@ -81,6 +77,36 @@ export class Application {
   handleResizeListener: any;
   handleAnimationFrame: any;
 
+  renderTexture: PIXI.RenderTexture;
+  // foodRenderTexture: PIXI.RenderTexture;
+  // virusRenderTexture: PIXI.RenderTexture;
+
+  text = new PIXI.Text("", {
+    fontFamily: "Arial",
+    fontSize: 24,
+    fill: "white",
+    align: "center",
+    strokeThickness: 8,
+  });
+
+  cull: Simple;
+
+  templateShape = new PIXI.Graphics()
+    .beginFill(0xffffff)
+    .lineStyle({ width: 3, color: 0x333333, alignment: 0 })
+    .drawCircle(0, 0, 50)
+    .endFill();
+
+  // virusTemplateShape = new PIXI.Graphics()
+  //   .beginFill(0xffffff)
+  //   .lineStyle({ width: 1, color: 0x333333, alignment: 0 })
+  //   .drawCircle(0, 0, 42);
+
+  // foodTemplateShape = new PIXI.Graphics()
+  //   .beginFill(0xffffff)
+  //   .lineStyle({ width: 1, color: 0x333333, alignment: 0 })
+  //   .drawCircle(0, 0, 10);
+
   leaderboard = ref<TopPlayerState[]>([]);
 
   constructor() {
@@ -88,6 +114,8 @@ export class Application {
       width: window.innerWidth,
       height: window.innerHeight,
       backgroundColor: 0x202230,
+      // resolution: window.devicePixelRatio,
+      antialias: true,
     });
 
     this.viewport = new Viewport({
@@ -97,10 +125,38 @@ export class Application {
       worldHeight: WORLD_SIZE,
     });
 
+    this.cull = new Simple();
+
+    this.cull.addList(this.viewport.children);
+    this.cull.cull(this.viewport.getVisibleBounds());
+
     const boundaries = new PIXI.Graphics();
     boundaries.beginFill(0x202230);
     boundaries.lineStyle(1, 0x313449);
     boundaries.drawRoundedRect(0, 0, WORLD_SIZE, WORLD_SIZE, 30);
+
+    this.renderTexture = PIXI.RenderTexture.create({
+      width: this.templateShape.width,
+      height: this.templateShape.height,
+      multisample: PIXI.MSAA_QUALITY.HIGH,
+      resolution: window.devicePixelRatio,
+    });
+
+    this.renderer.render(this.templateShape, {
+      renderTexture: this.renderTexture,
+      transform: new PIXI.Matrix(
+        1,
+        0,
+        0,
+        1,
+        this.templateShape.width / 2,
+        this.templateShape.height / 2
+      ),
+    });
+
+    // this.templateShape.destroy(true);
+
+    (this.renderer as PIXI.Renderer).framebuffer.blit();
 
     this.stage = new Stage();
     this.stage.addChild(this.viewport);
@@ -112,10 +168,11 @@ export class Application {
     this.foodGroup = new Group(GAME_ZINDEXES.FOOD, true);
 
     this.foodLayer = this.viewport.addChild(new Layer(this.foodGroup));
-    this.playerLayer = this.viewport.addChild(new Layer(this.playerGroup));
     this.virusLayer = this.viewport.addChild(new Layer(this.virusGroup));
+    this.playerLayer = this.viewport.addChild(new Layer(this.playerGroup));
 
     this.playerGroup.on("sort", (sprite) => {
+      // console.log(sprite.zOrder, "zOrder");
       sprite.zOrder = sprite.width;
     });
 
@@ -217,61 +274,6 @@ export class Application {
     }
   }
 
-  async drawCell(graphics: PIXI.Graphics, cell: CellState, hue: number) {
-    const fontSize = Math.max(cell.radius / 3, 24);
-
-    const textNumber = cell.splTokens;
-
-    // const beeSvg =
-    //   "https://s3-us-west-2.amazonaws.com/s.cdpn.io/106114/bee.svg";
-    // const beeTexture = await PIXI.Texture.fromURL(beeSvg);
-    // const bee = new PIXI.Sprite(beeTexture);
-
-    // graphics.addChild(bee);
-
-    const splLamportsText = new PIXI.Text(`${textNumber}¢`, {
-      fontFamily: "Arial",
-      fontSize,
-      fill: "white",
-      align: "center",
-      strokeThickness: 8,
-    });
-
-    const realGraphics = graphics || new Graphics();
-
-    this.drawCircle(realGraphics, hue, cell.radius, PLAYER_CONFIG.BORDER);
-
-    console.log(realGraphics.width);
-    console.log(cell.radius);
-
-    splLamportsText.anchor.set(0.5, 0.5);
-
-    realGraphics.zOrder = 100;
-
-    // bee.anchor.set(0.5, 0.5);
-    // realGraphics.addChild(bee);
-    realGraphics.addChild(splLamportsText);
-
-    return realGraphics;
-  }
-
-  drawCircle(
-    graphics: PIXI.Graphics,
-    hue: number,
-    radius: number,
-    lineWidth: number
-  ) {
-    if (!graphics) return;
-
-    graphics?.clear();
-    graphics.children.forEach((child) => child.destroy());
-    graphics.lineStyle(lineWidth, hslToHex(hue, 100, 45));
-    graphics.beginFill(hslToHex(hue, 100, 50));
-    graphics.drawCircle(0, 0, radius);
-
-    graphics.endFill();
-  }
-
   drawVirus(graphics: PIXI.Graphics, virus: any) {
     graphics?.clear();
 
@@ -279,7 +281,7 @@ export class Application {
     graphics.beginFill(virus.fill);
     // graphics.drawCircle(0, 0, virus.radius);
 
-    console.log(virus.rotation, "rotation");
+    // console.log(virus.rotation, "rotation");
 
     this.drawBurst(
       graphics,
@@ -304,19 +306,19 @@ export class Application {
     this.isPlayerJoined = false;
 
     Object.values(this.playerCellsGraphics).forEach((graphics) => {
-      graphics.destroy(true);
+      graphics.destroy();
     });
 
     Object.values(this.food).forEach((graphics) => {
-      graphics.destroy(true);
+      graphics.destroy();
     });
 
     Object.values(this.virus).forEach((graphics) => {
-      graphics.destroy(true);
+      graphics.destroy();
     });
 
     Object.values(this.massFood).forEach((graphics) => {
-      graphics.destroy(true);
+      graphics.destroy();
     });
 
     this.players = {};
@@ -338,7 +340,10 @@ export class Application {
   }
 
   rejoin() {
-    this.room.send("rejoin");
+    this.room.send("rejoin", {
+      jwt: getJWT(),
+    });
+    // this.connect(this.roomName);
     useGameStore().gameSettings.isCashedOut = false;
     useGameStore().gameSettings.isDead = false;
   }
@@ -381,14 +386,17 @@ export class Application {
               publicKey: useWalletStore().publicKey,
             });
 
-      this.handleAnimationFrame = window.requestAnimationFrame(this.tickGame);
+      this.roomName = roomName;
+      this.handleAnimationFrame = requestAnimationFrame(this.tickGame);
 
       localStorage.setItem("roomId", this.room.id);
       localStorage.setItem("sessionId", this.room.sessionId);
 
       this.startPing();
 
-      this.room.state.players.onAdd = (player, sessionId: string) => {
+      // templateShape.destroy(true);
+
+      const onPlayerAdd = (player: PlayerState, sessionId: string) => {
         if (player.id === this.room.sessionId) {
           this.isPlayerJoined = true;
           this.viewport.moveCenter(player.x, player.y);
@@ -396,32 +404,57 @@ export class Application {
 
         this.players[sessionId] = player;
 
+        // console.log("adding player");
+
         player.cells.onAdd = (cell) => {
           this.players[sessionId] = player;
-
-          console.log(cell.uiCryptoAmount);
 
           cell.onChange = () => {
             this.players[sessionId] = player;
 
             if (this.playerCellsGraphics[cell.id]) {
-              this.drawCell(
-                this.playerCellsGraphics[cell.id],
-                cell,
-                player.hue
-              );
               return;
             }
 
-            const graphics = new PIXI.Graphics();
+            const graphics = new PIXI.Sprite(this.renderTexture);
 
-            this.drawCell(graphics, cell, player.hue);
+            const fontSize = Math.max(cell.radius / 2, 16);
+
+            const textNumber = cell.splTokens;
+
+            const cellContainer = new PIXI.Container();
+
+            cellContainer.addChild(graphics);
+
+            const splLamportsText = new PIXI.Text(`${textNumber}B ${cell.id}`, {
+              fontFamily: "Manrope",
+              fontSize,
+              fill: "white",
+              align: "center",
+              strokeThickness: 5,
+            });
+
+            splLamportsText.anchor.set(0.5);
+            graphics.anchor.set(0.5);
 
             graphics.x = cell.x;
             graphics.y = cell.y;
+            graphics.width = cell.radius * 2;
+            graphics.height = cell.radius * 2;
+            graphics.tint = parseInt(
+              Math.floor(player.hue * 16777215).toString(16),
+              16
+            );
+            splLamportsText.x = cell.x;
+            splLamportsText.y = cell.y;
+            splLamportsText.zIndex = 1000000;
 
-            this.playerLayer.addChild(graphics);
+            cellContainer.addChild(graphics, splLamportsText);
+
+            this.playerLayer.addChild(cellContainer);
+
             this.playerCellsGraphics[cell.id] = graphics;
+            this.playerTextGraphics[cell.id] = splLamportsText;
 
             this.playerCells[cell.id] = cell;
           };
@@ -430,8 +463,13 @@ export class Application {
         player.cells.onRemove = (cell) => {
           if (this.playerCellsGraphics[cell.id]) {
             this.viewport.removeChild(this.playerCellsGraphics[cell.id]);
+            this.playerLayer.removeChild(this.playerCellsGraphics[cell.id]);
+
             this.playerCellsGraphics[cell.id].destroy();
+            this.playerTextGraphics[cell.id].destroy();
+
             delete this.playerCellsGraphics[cell.id];
+            delete this.playerTextGraphics[cell.id];
             delete this.playerCells[cell.id];
           }
         };
@@ -440,28 +478,26 @@ export class Application {
           if (player.id === this.room.sessionId) {
             lastActionTick.value = player.lastActionTick;
 
-            const cellCount = player.cells.length;
-
-            const maxCellMultiplier = Math.min(
-              Math.max(parseInt(String(cellCount)), 1),
-              4
+            const newWidth = lerp(
+              window.innerWidth,
+              (window.innerWidth + player.massTotal) * 0.7,
+              0.9
             );
 
-            const playerZoomOutWidth = player.massTotal * 2;
+            // max width = 5000
 
-            const widthToScale =
-              playerZoomOutWidth > 1000
-                ? 1000
-                : lerp(playerZoomOutWidth * 2, this.viewport.width, 0.1);
+            const width = Math.min(newWidth, 5000);
 
-            this.viewport.fitWidth(
-              window.innerWidth + widthToScale,
-              true,
-              true,
-              false
-            );
+            this.viewport.fitWidth(width, true, true, false);
           }
         };
+      };
+
+      this.room.state.players.onAdd = (player, sessionId: string) =>
+        onPlayerAdd(player, sessionId);
+
+      this.room.state.bots.onAdd = (player) => {
+        onPlayerAdd(player, player.id);
       };
 
       this.room.state.virus.onAdd = (virus) => {
@@ -473,43 +509,48 @@ export class Application {
         graphics.y = virus.y;
 
         this.virusLayer.addChild(graphics);
-
         this.virus[virus.id] = graphics;
       };
 
       this.room.state.food.onAdd = (food) => {
-        const graphics = new PIXI.Graphics();
+        const foodSprite = new PIXI.Sprite(this.renderTexture);
 
-        this.drawCircle(graphics, food.hue, food.radius, FOOD_CONFIG.BORDER);
+        foodSprite.anchor.set(0.5);
+        foodSprite.x = food.x;
+        foodSprite.y = food.y;
+        foodSprite.width = food.radius * 2;
+        foodSprite.height = food.radius * 2;
 
-        graphics.x = food.x;
-        graphics.y = food.y;
+        foodSprite.tint = parseInt(
+          Math.floor(Math.random() * 16777215).toString(16),
+          16
+        );
 
-        graphics.zOrder = -1;
+        foodSprite.zOrder = -1;
 
-        this.foodLayer.addChild(graphics);
+        this.foodLayer.addChild(foodSprite);
 
-        this.food[food.id] = graphics;
+        this.food[food.id] = foodSprite;
       };
 
       this.room.state.massFood.onAdd = (massFood) => {
-        const graphics = new PIXI.Graphics();
+        const massFoodSprite = new PIXI.Sprite(this.renderTexture);
 
-        this.drawCircle(
-          graphics,
-          massFood.hue,
-          massFood.radius,
-          PLAYER_CONFIG.BORDER
+        massFoodSprite.anchor.set(0.5);
+        massFoodSprite.x = massFood.x;
+        massFoodSprite.y = massFood.y;
+        massFoodSprite.width = massFood.radius * 2;
+        massFoodSprite.height = massFood.radius * 2;
+        massFoodSprite.tint = parseInt(
+          Math.floor(massFood.hue * 16777215).toString(16),
+          16
         );
 
-        graphics.x = massFood.x;
-        graphics.y = massFood.y;
+        massFoodSprite.zOrder = -1;
 
-        graphics.zOrder = -1;
+        this.foodLayer.addChild(massFoodSprite);
 
-        this.foodLayer.addChild(graphics);
-
-        this.massFood[massFood.id] = graphics;
+        this.massFood[massFood.id] = massFoodSprite;
       };
 
       this.room.onStateChange((state) => {
@@ -522,19 +563,23 @@ export class Application {
 
       this.room.state.virus.onRemove = (virus) => {
         this.viewport.removeChild(this.virus[virus.id]);
+        this.virusLayer.removeChild(this.virus[virus.id]);
         this.virus[virus.id].destroy();
         delete this.virus[virus.id];
       };
 
       this.room.state.food.onRemove = (food) => {
         this.viewport.removeChild(this.food[food.id]);
+        this.foodLayer.removeChild(this.food[food.id]);
         this.food[food.id].destroy();
         delete this.food[food.id];
       };
 
       this.room.state.massFood.onRemove = (massFood) => {
         this.viewport.removeChild(this.massFood[massFood.id]);
+
         this.massFood[massFood.id].destroy();
+
         delete this.massFood[massFood.id];
       };
 
@@ -543,14 +588,21 @@ export class Application {
           this.isPlayerJoined = false;
         }
 
-        for (const cell of player.cells) {
+        // console.log("removing player", player.id, sessionId);
+        // console.log("removing player", player.cells);
+
+        player.cells.forEach((cell) => {
           if (this.playerCellsGraphics[cell.id]) {
             this.viewport.removeChild(this.playerCellsGraphics[cell.id]);
+            this.playerLayer.removeChild(this.playerCellsGraphics[cell.id]);
             this.playerCellsGraphics[cell.id].destroy();
+            this.playerTextGraphics[cell.id].destroy();
+
             delete this.playerCellsGraphics[cell.id];
+            delete this.playerTextGraphics[cell.id];
             delete this.playerCells[cell.id];
           }
-        }
+        });
 
         delete this.players[sessionId];
       };
@@ -571,7 +623,6 @@ export class Application {
       });
 
       this.room.onMessage("room-info", (data) => {
-        console.log(data);
         roomSplTokenEntryFee.value = data.roomSplTokenEntryFee;
       });
 
@@ -583,6 +634,18 @@ export class Application {
         setTimeout(() => {
           this.startPing();
         }, 1000);
+      });
+
+      this.room.onError(() => {
+        const { goToLobby } = useGame();
+        const toast = useToast();
+        const router = useRouter();
+
+        localStorage.removeItem("roomId");
+        localStorage.removeItem("sessionId");
+        toast.error("An error occurred. Please try again later.");
+
+        goToLobby();
       });
 
       this.room.onLeave(() => {
@@ -620,92 +683,112 @@ export class Application {
       return;
     }
 
-    this.elapsedTime = now - this.lastTime;
+    const currentTime = performance.now();
+    const deltaTime = (currentTime - this.lastTime) / 1000;
+    this.lastTime = now;
 
-    if (this.elapsedTime >= MAX_FPS_MS) {
-      this.fixedTick();
-      this.lastTime = now;
-    }
+    this.fixedTick(deltaTime);
 
     this.renderer.render(this.stage as any);
 
     this.handleAnimationFrame = requestAnimationFrame(this.tickGame);
   };
 
-  private fixedTick() {
+  increaseRadius(graphics: PIXI.Graphics, amount: number) {
+    graphics.scale.x += amount;
+    graphics.scale.y += amount;
+  }
+
+  private fixedTick(deltaTime: number) {
     let playerCenterX = 0;
     let playerCenterY = 0;
 
     let currPlayerCellCount = 0;
 
+    const timeStart = performance.now();
+
+    // console.log(`Time start: ${timeStart}`);
     Object.values(this.players).forEach((player) => {
-      player.cells.forEach((cell) => {
-        if (!this.playerCellsGraphics[cell.id]) {
+      player.cells.forEach((cell, index) => {
+        const currentCell = this.playerCellsGraphics[cell.id];
+
+        if (!currentCell) {
           return;
         }
 
-        this.playerCellsGraphics[cell.id].x = lerp(
-          this.playerCellsGraphics[cell.id].x,
-          cell.x,
-          0.4
-        );
-        this.playerCellsGraphics[cell.id].y = lerp(
-          this.playerCellsGraphics[cell.id].y,
-          cell.y,
-          0.4
-        );
+        currentCell.x = lerp(currentCell.x, cell.x, 11 * deltaTime);
+        currentCell.y = lerp(currentCell.y, cell.y, 11 * deltaTime);
+
+        currentCell.width = lerp(currentCell.width, cell.radius * 2, 1);
+        currentCell.height = lerp(currentCell.height, cell.radius * 2, 1);
+
+        const fontSize = Math.max(cell.radius / 2, 16);
+
+        this.playerTextGraphics[cell.id].x = currentCell.x;
+        this.playerTextGraphics[cell.id].y = currentCell.y;
+        this.playerTextGraphics[cell.id].style.fontSize = fontSize;
+        this.playerTextGraphics[cell.id].text = `${cell.splTokens}B`;
+
+        currentCell.zOrder = cell.radius * 2;
 
         if (player.id === this.room.sessionId) {
-          playerCenterX += this.playerCellsGraphics[cell.id].x;
-          playerCenterY += this.playerCellsGraphics[cell.id].y;
+          playerCenterX += currentCell.x;
+          playerCenterY += currentCell.y;
           currPlayerCellCount++;
         }
       });
-
-      if (player.id === this.room.sessionId) {
-        const newCenterX = playerCenterX / currPlayerCellCount;
-        const newCenterY = playerCenterY / currPlayerCellCount;
-
-        this.viewport.moveCenter(newCenterX, newCenterY);
-      }
     });
 
-    this.room.state.massFood
-      .filter((mass) => mass.speed > 0)
-      .forEach((massFood: MassFoodState) => {
-        if (!this.massFood[massFood.id]) {
-          return;
-        }
+    const newCenterX = playerCenterX / currPlayerCellCount;
+    const newCenterY = playerCenterY / currPlayerCellCount;
 
-        this.massFood[massFood.id].x = lerp(
-          this.massFood[massFood.id].x,
-          massFood.x,
-          0.4
-        );
-        this.massFood[massFood.id].y = lerp(
-          this.massFood[massFood.id].y,
-          massFood.y,
-          0.4
-        );
-      });
+    this.viewport.moveCenter(
+      lerp(this.viewport.center.x, newCenterX, 1),
+      lerp(this.viewport.center.y, newCenterY, 1)
+    );
+
+    this.room.state.massFood.forEach((massFood: MassFoodState) => {
+      if (massFood.speed === 0) {
+        return;
+      }
+
+      if (!this.massFood[massFood.id]) {
+        return;
+      }
+
+      this.massFood[massFood.id].x = lerp(
+        this.massFood[massFood.id].x,
+        massFood.x,
+        10 * deltaTime
+      );
+      this.massFood[massFood.id].y = lerp(
+        this.massFood[massFood.id].y,
+        massFood.y,
+        10 * deltaTime
+      );
+    });
 
     this.room.state.virus.forEach((virus) => {
       if (!this.virus[virus.id]) {
         return;
       }
 
-      this.virus[virus.id].x = lerp(this.virus[virus.id].x, virus.x, 0.4);
-      this.virus[virus.id].y = lerp(this.virus[virus.id].y, virus.y, 0.4);
+      this.virus[virus.id].x = lerp(
+        this.virus[virus.id].x,
+        virus.x,
+        10 * deltaTime
+      );
+      this.virus[virus.id].y = lerp(
+        this.virus[virus.id].y,
+        virus.y,
+        10 * deltaTime
+      );
 
       // add spinning animation to virus
       this.virus[virus.id].rotation =
-        (this.virus[virus.id].rotation + 0.03) % 360;
-
-      this.drawVirus(this.virus[virus.id], {
-        ...virus,
-        radius: lerp(this.virus[virus.id].width / 2, virus.radius, 0.4),
-        rotation: this.virus[virus.id].rotation,
-      });
+        (this.virus[virus.id].rotation + 0.007) % 360;
     });
+
+    // console.log(`Time end: ${performance.now() - timeStart}`);
   }
 }

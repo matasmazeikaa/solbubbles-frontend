@@ -30,7 +30,6 @@ import { TOKEN_CONFIG } from "@/constants";
 const { game } = useGame();
 
 const leaderboard = computed(() => {
-  console.log(game.value?.leaderboard);
   return game.value?.leaderboard as any;
 });
 </script>

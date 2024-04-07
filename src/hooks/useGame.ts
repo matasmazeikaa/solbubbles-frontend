@@ -1,4 +1,5 @@
 import type { Application } from "@/game/Application";
+import { useGameStore } from "@/stores/game";
 import { ref } from "vue";
 
 const game = ref<Application>();
@@ -11,11 +12,22 @@ export const useGame = () => {
     game.value = app;
   };
 
+  const goToLobby = () => {
+    game.value?.cleanUp();
+    game.value?.room.leave();
+    game.value = undefined;
+    useGameStore().gameSettings.isGameStart = false;
+    useGameStore().gameSettings.isCashedOut = false;
+    useGameStore().gameSettings.isDead = false;
+    document.getElementsByTagName("canvas")[0].remove();
+  };
+
   return {
     game,
     roomSplTokenEntryFee,
     lastActionTick,
     isReconnected,
+    goToLobby,
     setGame,
   };
 };

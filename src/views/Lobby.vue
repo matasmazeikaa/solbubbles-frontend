@@ -43,24 +43,18 @@ import { useGameStore } from "@/stores/game";
 import { onBeforeMount, ref } from "vue";
 import { useWebsocketClient } from "@/hooks/useWebsocketClient";
 import { useGame } from "@/hooks/useGame";
+import { useBalanceStore } from "@/stores/balanceStore";
 
 const gameStore = useGameStore();
 
 const { gameSettings } = storeToRefs(gameStore);
 const { initClient } = useWebsocketClient();
+const balanceStore = useBalanceStore();
 
 const { setGame, isReconnected } = useGame();
 const isLoadingRoomConnect = ref(false);
 
 const joinRoom = async (room: Room) => {
-  // if (room.roomSplTokenEntryFee > depositedBalance.value) {
-  //   toast.error("Deposited balance not enough, please deposit more", {
-  //     position: "top-right",
-  //   });
-
-  //   return;
-  // }
-
   const game = new Application();
 
   setGame(game);
@@ -69,6 +63,8 @@ const joinRoom = async (room: Room) => {
 
   try {
     await game.connect(room.id);
+    balanceStore.updateAllBalances();
+
     gameSettings.value.isGameStart = true;
 
     document.getElementById("game")?.appendChild(game.view as unknown as Node);
@@ -118,6 +114,7 @@ onBeforeMount(() => {
   height: 100%;
   justify-content: space-between;
 }
+
 .start-menu {
   z-index: 5;
   padding: 2.4rem;

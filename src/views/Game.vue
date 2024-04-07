@@ -30,26 +30,19 @@ import YouDiedModal from "@/components/YouDiedModal.vue";
 import { useGameStore } from "@/stores/game";
 import { useGame } from "@/hooks/useGame";
 import HowToPlayPopup from "@/components/HowToPlayPopup.vue";
+import { useBalanceStore } from "@/stores/balanceStore";
 
 const gameStore = useGameStore();
 const { gameSettings, player } = storeToRefs(gameStore);
-const { game, isReconnected } = useGame();
-
-const goToLobby = () => {
-  game.value?.cleanUp();
-  game.value?.room.leave();
-  game.value = undefined;
-  gameSettings.value.isGameStart = false;
-  gameSettings.value.isCashedOut = false;
-  gameSettings.value.isDead = false;
-  document.getElementsByTagName("canvas")[0].remove();
-};
+const { game, isReconnected, goToLobby } = useGame();
+const balanceStore = useBalanceStore();
 
 const handleCashout = () => {
   game.value?.cashOut();
 };
 
 const handleRespawn = () => {
+  balanceStore.updateAllBalances();
   game.value?.rejoin();
 };
 </script>
