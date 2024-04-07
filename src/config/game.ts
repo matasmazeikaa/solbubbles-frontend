@@ -18,7 +18,7 @@ export enum GameConfig {
   massLossRate = 1,
   minMassLoss = 50,
   mergeTimer = 20,
-  cashoutCooldown = 0,
+  cashoutCooldown = 30,
   maxRoomUserAmount = 100,
 }
 

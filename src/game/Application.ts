@@ -14,7 +14,6 @@ import type { TopPlayerState } from "./StateTypes/TopPlayerState";
 import { useGame } from "@/hooks/useGame";
 import { useBalanceStore } from "@/stores/balanceStore";
 import { useWalletStore } from "@/stores/walletStore";
-import { Simple } from "pixi-cull";
 import { useRouter } from "vue-router";
 
 const WORLD_SIZE = 5000;
@@ -89,8 +88,6 @@ export class Application {
     strokeThickness: 8,
   });
 
-  cull: Simple;
-
   templateShape = new PIXI.Graphics()
     .beginFill(0xffffff)
     .lineStyle({ width: 3, color: 0x333333, alignment: 0 })
@@ -124,11 +121,6 @@ export class Application {
       worldWidth: WORLD_SIZE,
       worldHeight: WORLD_SIZE,
     });
-
-    this.cull = new Simple();
-
-    this.cull.addList(this.viewport.children);
-    this.cull.cull(this.viewport.getVisibleBounds());
 
     const boundaries = new PIXI.Graphics();
     boundaries.beginFill(0x202230);

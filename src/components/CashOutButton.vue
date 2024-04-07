@@ -11,7 +11,6 @@
 
 <script setup lang="ts">
 import { GameConfig } from "@/config/game";
-import { PLAYER_CONFIG } from "@/constants";
 import { useGame } from "@/hooks/useGame";
 import { computed, ref, watch } from "vue";
 import Button from "./Button.vue";
