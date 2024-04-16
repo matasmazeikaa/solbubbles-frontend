@@ -1,6 +1,7 @@
 import { fileURLToPath, URL } from "node:url";
 import { VitePluginFonts } from "vite-plugin-fonts";
 import nodePolyfills from "vite-plugin-node-stdlib-browser";
+import mkcert from 'vite-plugin-mkcert'
 
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
@@ -22,6 +23,7 @@ export default defineConfig({
     }),
     svgLoader(),
     nodePolyfills(),
+    mkcert()
   ],
   build: {
     target: "esnext", // you can also use 'es2020' here
@@ -39,6 +41,9 @@ export default defineConfig({
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
+  },
+  server: {
+    https: true,
   },
   css: {
     preprocessorOptions: {

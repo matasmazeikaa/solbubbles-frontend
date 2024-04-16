@@ -372,7 +372,7 @@ export class Application {
     try {
       this.room =
         roomName && sessionId
-          ? await this.client.reconnect(roomName, sessionId)
+          ? await this.client.reconnect(this.room.reconnectionToken)
           : await this.client.joinOrCreate<GameState>(roomName, {
               jwt: getJWT(),
               publicKey: useWalletStore().publicKey,
@@ -398,10 +398,10 @@ export class Application {
 
         // console.log("adding player");
 
-        player.cells.onAdd = (cell) => {
+        player.cells.onAdd((cell) => {
           this.players[sessionId] = player;
 
-          cell.onChange = () => {
+          cell.onChange(() => {
             this.players[sessionId] = player;
 
             if (this.playerCellsGraphics[cell.id]) {
@@ -449,10 +449,10 @@ export class Application {
             this.playerTextGraphics[cell.id] = splLamportsText;
 
             this.playerCells[cell.id] = cell;
-          };
-        };
+          });
+        });
 
-        player.cells.onRemove = (cell) => {
+        player.cells.onRemove((cell) => {
           if (this.playerCellsGraphics[cell.id]) {
             this.viewport.removeChild(this.playerCellsGraphics[cell.id]);
             this.playerLayer.removeChild(this.playerCellsGraphics[cell.id]);
@@ -464,9 +464,9 @@ export class Application {
             delete this.playerTextGraphics[cell.id];
             delete this.playerCells[cell.id];
           }
-        };
+        });
 
-        player.onChange = () => {
+        player.onChange(() => {
           if (player.id === this.room.sessionId) {
             lastActionTick.value = player.lastActionTick;
 
@@ -482,17 +482,14 @@ export class Application {
 
             this.viewport.fitWidth(width, true, true, false);
           }
-        };
+        });
       };
 
-      this.room.state.players.onAdd = (player, sessionId: string) =>
+      this.room.state.players.onAdd((player, sessionId: string) => {
         onPlayerAdd(player, sessionId);
+      });
 
-      this.room.state.bots.onAdd = (player) => {
-        onPlayerAdd(player, player.id);
-      };
-
-      this.room.state.virus.onAdd = (virus) => {
+      this.room.state.virus.onAdd((virus) => {
         const graphics = new PIXI.Graphics();
 
         this.drawVirus(graphics, virus);
@@ -502,9 +499,9 @@ export class Application {
 
         this.virusLayer.addChild(graphics);
         this.virus[virus.id] = graphics;
-      };
+      });
 
-      this.room.state.food.onAdd = (food) => {
+      this.room.state.food.onAdd((food) => {
         const foodSprite = new PIXI.Sprite(this.renderTexture);
 
         foodSprite.anchor.set(0.5);
@@ -523,9 +520,9 @@ export class Application {
         this.foodLayer.addChild(foodSprite);
 
         this.food[food.id] = foodSprite;
-      };
+      });
 
-      this.room.state.massFood.onAdd = (massFood) => {
+      this.room.state.massFood.onAdd((massFood) => {
         const massFoodSprite = new PIXI.Sprite(this.renderTexture);
 
         massFoodSprite.anchor.set(0.5);
@@ -543,39 +540,39 @@ export class Application {
         this.foodLayer.addChild(massFoodSprite);
 
         this.massFood[massFood.id] = massFoodSprite;
-      };
+      });
 
       this.room.onStateChange((state) => {
         this.leaderboard.value = state.leaderboard as TopPlayerState[];
       });
 
-      this.room.state.leaderboard.onRemove = (leaderboardPlayer) => {
+      this.room.state.leaderboard.onRemove((leaderboardPlayer) => {
         delete useGameStore().leaderboard[leaderboardPlayer.id];
-      };
+      });
 
-      this.room.state.virus.onRemove = (virus) => {
+      this.room.state.virus.onRemove((virus) => {
         this.viewport.removeChild(this.virus[virus.id]);
         this.virusLayer.removeChild(this.virus[virus.id]);
         this.virus[virus.id].destroy();
         delete this.virus[virus.id];
-      };
+      });
 
-      this.room.state.food.onRemove = (food) => {
+      this.room.state.food.onRemove((food) => {
         this.viewport.removeChild(this.food[food.id]);
         this.foodLayer.removeChild(this.food[food.id]);
         this.food[food.id].destroy();
         delete this.food[food.id];
-      };
+      });
 
-      this.room.state.massFood.onRemove = (massFood) => {
+      this.room.state.massFood.onRemove((massFood) => {
         this.viewport.removeChild(this.massFood[massFood.id]);
 
         this.massFood[massFood.id].destroy();
 
         delete this.massFood[massFood.id];
-      };
+      });
 
-      this.room.state.players.onRemove = (player, sessionId: string) => {
+      this.room.state.players.onRemove((player, sessionId: string) => {
         if (player.id === this.room.sessionId) {
           this.isPlayerJoined = false;
         }
@@ -597,7 +594,7 @@ export class Application {
         });
 
         delete this.players[sessionId];
-      };
+      });
 
       this.room.onMessage(
         "cash-out-success",

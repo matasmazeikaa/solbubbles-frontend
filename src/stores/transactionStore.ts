@@ -3,11 +3,13 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { useBalanceStore } from "./balanceStore";
 import { PINIA_PERSIST_STORE } from "@/constants";
+import { useToast } from "vue-toast-notification";
 
 export const useTransactionStore = defineStore(
   "transactionStore",
   () => {
     const balanceStore = useBalanceStore();
+    const toast = useToast();
 
     const transaction = ref(null);
     const transactions = ref<
@@ -73,7 +75,16 @@ export const useTransactionStore = defineStore(
           setTimeout(() => {
             pollTransactionUntillFound(transactionSignature);
           }, 5000);
+
+          return;
         }
+
+        toast.error(
+          "Transaction has received an unexpeceted error while being processed. And has not funded your account. Please try contacting support, this was unexpected."
+        );
+
+        removeProcessingTransaction(transactionSignature);
+
         console.log(error);
         console.error(error);
       }
