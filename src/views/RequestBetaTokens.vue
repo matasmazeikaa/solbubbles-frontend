@@ -133,6 +133,8 @@ const handleRequest = async () => {
 
   isLoading.value = false;
 };
+
+console.log("hey");
 </script>
 
 <style lang="scss" scoped>
