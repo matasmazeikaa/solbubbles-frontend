@@ -14,6 +14,7 @@ import { GameConfig } from "@/config/game";
 import { useGame } from "@/hooks/useGame";
 import { computed, ref, watch } from "vue";
 import Button from "./Button.vue";
+import dayjs from "dayjs";
 
 const { lastActionTick } = useGame();
 
@@ -30,8 +31,8 @@ const getLastActionSecondsDiff = () => {
     return 0;
   }
 
-  const startDate = new Date(lastActionTick.value).getTime();
-  const endDate = new Date().getTime();
+  const startDate = dayjs(lastActionTick.value).valueOf();
+  const endDate = dayjs().valueOf();
   const diff = endDate - startDate;
   const seconds = Math.floor((diff / 1000) % 60);
 
