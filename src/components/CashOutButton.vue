@@ -33,6 +33,10 @@ const getLastActionSecondsDiff = () => {
 
   const startDate = dayjs(lastActionTick.value).valueOf();
   const endDate = dayjs().valueOf();
+
+  console.log(startDate, endDate);
+  console.log(lastActionTick.value);
+
   const diff = endDate - startDate;
   const seconds = Math.floor((diff / 1000) % 60);
 
