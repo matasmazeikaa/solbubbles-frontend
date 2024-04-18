@@ -41,15 +41,13 @@
 </template>
 
 <script lang="ts" setup>
-import type { Room } from "@/types";
 import { computed, ref } from "vue";
 import Box from "@/components/Box.vue";
 import Button from "@/components/Button.vue";
 import { MAX_USERS_IN_ROOM } from "@/constants";
 import LockedIcon from "@/components/LockedIcon.vue";
 import { useWebsocketClient } from "@/hooks/useWebsocketClient";
-import { formatFiat } from "@/utils/currency";
-import { LAMPORTS_PER_TOKEN, useBalanceStore } from "@/stores/balanceStore";
+import { useBalanceStore } from "@/stores/balanceStore";
 import Tokens from "@/components/Tokens.vue";
 import { useWalletStore } from "@/stores/walletStore";
 
@@ -62,6 +60,10 @@ const ROOM = {
     id: "game-room-2",
     roomSplTokenEntryFee: 100,
   },
+  gameRoom3: {
+    id: "game-room-3",
+    roomSplTokenEntryFee: 500,
+  },
 } as const;
 
 defineProps({
@@ -72,38 +74,27 @@ const { allRooms } = useWebsocketClient();
 const walletStore = useWalletStore();
 const balanceStore = useBalanceStore();
 
-const reconnectionData = ref({
-  roomId: "",
-  sessionId: "",
-});
+const reconnectionToken = ref("");
 
 const emits = defineEmits(["start-game", "reconnect"]);
 
 const checkIfConnectedInRoom = async () => {
   try {
-    reconnectionData.value.roomId = localStorage.getItem("roomId") || "";
-    reconnectionData.value.sessionId = localStorage.getItem("sessionId") || "";
+    reconnectionToken.value = localStorage.getItem("reconnectionToken") || "";
   } catch (error) {
     console.error(error);
   }
 };
 
 const isConnectedInRoom = computed(() => {
-  return reconnectionData.value.roomId && reconnectionData.value.sessionId;
+  return reconnectionToken.value;
 });
 
 const handleReconnect = () => {
-  emits("reconnect", {
-    roomId: reconnectionData.value.roomId,
-    sessionId: reconnectionData.value.sessionId,
-  });
+  emits("reconnect", reconnectionToken.value);
 
-  localStorage.removeItem("roomId");
-  localStorage.removeItem("sessionId");
-  reconnectionData.value = {
-    roomId: "",
-    sessionId: "",
-  };
+  localStorage.removeItem("reconnectionToken");
+  reconnectionToken.value = "";
 };
 
 const roomText = computed(() => {
@@ -118,7 +109,8 @@ const computedRooms = computed(() =>
   Object.values(ROOM).map((room) => {
     const isLocked =
       !walletStore.isLoggedIn ||
-      (balanceStore.depositedTokenBalance.uiAmount || 0) < room.roomSplTokenEntryFee;
+      (balanceStore.depositedTokenBalance.uiAmount || 0) <
+        room.roomSplTokenEntryFee;
 
     const activeRoom = allRooms.value.find(
       (activeRoom) => activeRoom.name === room.id
@@ -146,19 +138,13 @@ checkIfConnectedInRoom();
 
 <style lang="scss" scoped>
 .container {
-  max-width: 65.6rem;
-  width: 100%;
+  max-width: 123rem;
   margin: 0 auto;
-
-  @media screen and (max-width: 768px) {
-    background-color: transparent;
-    padding: 0;
-  }
 }
 
 .rooms {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fill, minmax(35rem, 1fr));
   grid-gap: 1.6rem;
 
   margin-right: -1.6rem;
@@ -183,16 +169,6 @@ checkIfConnectedInRoom();
 
   &__button {
     width: 100%;
-  }
-
-  @media screen and (max-width: 768px) {
-    grid-template-columns: 1fr;
-    margin: 0;
-
-    &__room {
-      background-color: $background-color;
-      margin: 0;
-    }
   }
 }
 </style>

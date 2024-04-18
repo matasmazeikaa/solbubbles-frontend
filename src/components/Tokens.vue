@@ -14,9 +14,15 @@ interface Props {
 
 const props = defineProps<Props>();
 
-const formattedTokens = computed(() =>
-  props.tokens
+const formattedTokens = computed(() => {
+  if (props.tokens === 0 || props.tokens === 0) {
+    return `0 ${TOKEN_CONFIG.LABEL}`;
+  }
+
+  return props.tokens
     ? `${roundTo(props.tokens, 2)} ${TOKEN_CONFIG.LABEL}`
-    : `${roundTokensFromLamports(Number(props.lamports))} ${TOKEN_CONFIG.LABEL}`
-);
+    : `${roundTokensFromLamports(Number(props.lamports))} ${
+        TOKEN_CONFIG.LABEL
+      }`;
+});
 </script>

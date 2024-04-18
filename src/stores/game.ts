@@ -5,13 +5,16 @@ import { ref } from "vue";
 
 const GAME_DEFAULT_STATE = {
   isDead: false,
+  isDeadLoading: false,
   isCashedOut: false,
+  isCashOutLoading: false,
   isGameStart: false,
   splTokens: 0,
 };
 
 const PLAYER_DEFAULT_STATE = {
   splTokens: 0,
+  balanceSplTokens: 0,
   lastActionTick: 0,
 };
 

@@ -1,4 +1,5 @@
 import type { Application } from "@/game/Application";
+import { useBalanceStore } from "@/stores/balanceStore";
 import { useGameStore } from "@/stores/game";
 import { ref } from "vue";
 
@@ -14,12 +15,13 @@ export const useGame = () => {
 
   const goToLobby = () => {
     game.value?.cleanUp();
-    game.value?.room.leave();
+    game.value?.room?.leave();
     game.value = undefined;
     useGameStore().gameSettings.isGameStart = false;
     useGameStore().gameSettings.isCashedOut = false;
     useGameStore().gameSettings.isDead = false;
     document.getElementsByTagName("canvas")[0].remove();
+    useBalanceStore().updateAllBalances();
   };
 
   return {

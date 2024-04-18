@@ -14,7 +14,7 @@ import type { TopPlayerState } from "./StateTypes/TopPlayerState";
 import { useGame } from "@/hooks/useGame";
 import { useBalanceStore } from "@/stores/balanceStore";
 import { useWalletStore } from "@/stores/walletStore";
-import { useRouter } from "vue-router";
+import { TOKEN_CONFIG } from "@/constants";
 
 const WORLD_SIZE = 5000;
 
@@ -70,6 +70,8 @@ export class Application {
   lastPing = 0;
   lastPong = 0;
 
+  lastPlayerPosition = { x: 0, y: 0 };
+
   handleKeyDownListener: any;
   handleTouchListener: any;
   handleKeyUpListener: any;
@@ -90,19 +92,8 @@ export class Application {
 
   templateShape = new PIXI.Graphics()
     .beginFill(0xffffff)
-    .lineStyle({ width: 3, color: 0x333333, alignment: 0 })
     .drawCircle(0, 0, 50)
     .endFill();
-
-  // virusTemplateShape = new PIXI.Graphics()
-  //   .beginFill(0xffffff)
-  //   .lineStyle({ width: 1, color: 0x333333, alignment: 0 })
-  //   .drawCircle(0, 0, 42);
-
-  // foodTemplateShape = new PIXI.Graphics()
-  //   .beginFill(0xffffff)
-  //   .lineStyle({ width: 1, color: 0x333333, alignment: 0 })
-  //   .drawCircle(0, 0, 10);
 
   leaderboard = ref<TopPlayerState[]>([]);
 
@@ -111,7 +102,6 @@ export class Application {
       width: window.innerWidth,
       height: window.innerHeight,
       backgroundColor: 0x202230,
-      // resolution: window.devicePixelRatio,
       antialias: true,
     });
 
@@ -146,8 +136,6 @@ export class Application {
       ),
     });
 
-    // this.templateShape.destroy(true);
-
     (this.renderer as PIXI.Renderer).framebuffer.blit();
 
     this.stage = new Stage();
@@ -164,7 +152,6 @@ export class Application {
     this.playerLayer = this.viewport.addChild(new Layer(this.playerGroup));
 
     this.playerGroup.on("sort", (sprite) => {
-      // console.log(sprite.zOrder, "zOrder");
       sprite.zOrder = sprite.width;
     });
 
@@ -244,22 +231,22 @@ export class Application {
       cx =
         x +
         Math.cos(start + step * n - qtrStep * 3) *
-          (innerRadius / Math.cos(qtrStep));
+        (innerRadius / Math.cos(qtrStep));
       cy =
         y -
         Math.sin(start + step * n - qtrStep * 3) *
-          (innerRadius / Math.cos(qtrStep));
+        (innerRadius / Math.cos(qtrStep));
       dx = x + Math.cos(start + step * n - halfStep) * innerRadius;
       dy = y - Math.sin(start + step * n - halfStep) * innerRadius;
       target.quadraticCurveTo(cx, cy, dx, dy);
       cx =
         x +
         Math.cos(start + step * n - qtrStep) *
-          (innerRadius / Math.cos(qtrStep));
+        (innerRadius / Math.cos(qtrStep));
       cy =
         y -
         Math.sin(start + step * n - qtrStep) *
-          (innerRadius / Math.cos(qtrStep));
+        (innerRadius / Math.cos(qtrStep));
       dx = x + Math.cos(start + step * n) * outerRadius;
       dy = y - Math.sin(start + step * n) * outerRadius;
       target.quadraticCurveTo(cx, cy, dx, dy);
@@ -271,9 +258,6 @@ export class Application {
 
     graphics.lineStyle(virus.strokeWidth, virus.stroke);
     graphics.beginFill(virus.fill);
-    // graphics.drawCircle(0, 0, virus.radius);
-
-    // console.log(virus.rotation, "rotation");
 
     this.drawBurst(
       graphics,
@@ -323,7 +307,7 @@ export class Application {
     this.viewport.destroy();
 
     localStorage.removeItem("roomId");
-    localStorage.removeItem("sessionId");
+    localStorage.removeItem("reconnectionToken");
 
     window.removeEventListener("keydown", this.handleKeyDownListener, false);
     window.removeEventListener("keyup", this.handleKeyUpListener, false);
@@ -341,6 +325,13 @@ export class Application {
   }
 
   handleKeyDown(event: KeyboardEvent) {
+    if (
+      useGameStore().gameSettings.isDead ||
+      useGameStore().gameSettings.isCashedOut
+    ) {
+      return;
+    }
+
     const key = event.key;
 
     if (key === "w" && this.reenviar) {
@@ -368,35 +359,39 @@ export class Application {
     this.room.send("ping");
   }
 
-  async connect(roomName: string, sessionId?: string) {
+  async connect({
+    roomName,
+    sessionId,
+  }: {
+    roomName?: string;
+    sessionId?: string;
+  }) {
     try {
-      this.room =
-        roomName && sessionId
-          ? await this.client.reconnect(this.room.reconnectionToken)
-          : await this.client.joinOrCreate<GameState>(roomName, {
-              jwt: getJWT(),
-              publicKey: useWalletStore().publicKey,
-            });
+      if (sessionId) {
+        this.room = await this.client.reconnect(sessionId);
+      } else {
+        this.room = await this.client.joinOrCreate<GameState>(roomName, {
+          jwt: getJWT(),
+          publicKey: useWalletStore().publicKey,
+        });
+      }
 
       this.roomName = roomName;
       this.handleAnimationFrame = requestAnimationFrame(this.tickGame);
 
       localStorage.setItem("roomId", this.room.id);
-      localStorage.setItem("sessionId", this.room.sessionId);
+      localStorage.setItem("reconnectionToken", this.room.reconnectionToken);
 
       this.startPing();
-
-      // templateShape.destroy(true);
 
       const onPlayerAdd = (player: PlayerState, sessionId: string) => {
         if (player.id === this.room.sessionId) {
           this.isPlayerJoined = true;
           this.viewport.moveCenter(player.x, player.y);
+          lastActionTick.value = player.lastActionTick;
         }
 
         this.players[sessionId] = player;
-
-        // console.log("adding player");
 
         player.cells.onAdd((cell) => {
           this.players[sessionId] = player;
@@ -467,7 +462,7 @@ export class Application {
         });
 
         player.onChange(() => {
-          if (player.id === this.room.sessionId) {
+          if (player.id === this.room.sessionId && !player.isCashedOut) {
             lastActionTick.value = player.lastActionTick;
 
             const newWidth = lerp(
@@ -475,8 +470,6 @@ export class Application {
               (window.innerWidth + player.massTotal) * 0.7,
               0.9
             );
-
-            // max width = 5000
 
             const width = Math.min(newWidth, 5000);
 
@@ -560,6 +553,7 @@ export class Application {
       this.room.state.food.onRemove((food) => {
         this.viewport.removeChild(this.food[food.id]);
         this.foodLayer.removeChild(this.food[food.id]);
+
         this.food[food.id].destroy();
         delete this.food[food.id];
       });
@@ -576,9 +570,6 @@ export class Application {
         if (player.id === this.room.sessionId) {
           this.isPlayerJoined = false;
         }
-
-        // console.log("removing player", player.id, sessionId);
-        // console.log("removing player", player.cells);
 
         player.cells.forEach((cell) => {
           if (this.playerCellsGraphics[cell.id]) {
@@ -598,18 +589,35 @@ export class Application {
 
       this.room.onMessage(
         "cash-out-success",
-        (data: { amountWon: number; newDepositedBalance: number }) => {
-          useGameStore().gameSettings.isCashedOut = true;
+        async (data: { amountWon: number; newBalance: number }) => {
+          await useBalanceStore().updateAllBalances();
 
-          useBalanceStore().updateAllBalances();
+          useGameStore().gameSettings.isCashOutLoading = false;
           useGameStore().player.splTokens = data.amountWon;
         }
       );
 
-      this.room.onMessage("death", (data) => {
-        useGameStore().gameSettings.isDead = true;
-        useGameStore().player.splTokens = data.splTokens;
+      this.room.onMessage("cash-out-initiated", () => {
+        useGameStore().gameSettings.isCashedOut = true;
+        useGameStore().gameSettings.isCashOutLoading = true;
       });
+
+      this.room.onMessage("death-initiate", async () => {
+        useGameStore().gameSettings.isDead = true;
+        useGameStore().gameSettings.isDeadLoading = true;
+        // useGameStore().player.splTokens = amountLost;
+        // useGameStore().player.balanceSplTokens = newBalance;
+      });
+
+      this.room.onMessage(
+        "death-confirm",
+        async ({ amountLost, newBalance }) => {
+          await useBalanceStore().updateAllBalances();
+
+          useGameStore().gameSettings.isDeadLoading = false;
+          useGameStore().player.splTokens = amountLost;
+        }
+      );
 
       this.room.onMessage("room-info", (data) => {
         roomSplTokenEntryFee.value = data.roomSplTokenEntryFee;
@@ -628,10 +636,9 @@ export class Application {
       this.room.onError(() => {
         const { goToLobby } = useGame();
         const toast = useToast();
-        const router = useRouter();
 
         localStorage.removeItem("roomId");
-        localStorage.removeItem("sessionId");
+        localStorage.removeItem("reconnectionToken");
         toast.error("An error occurred. Please try again later.");
 
         goToLobby();
@@ -641,14 +648,14 @@ export class Application {
         this.isPlayerJoined = false;
         useGameStore().gameSettings.isCashedOut = false;
         localStorage.removeItem("roomId");
-        localStorage.removeItem("sessionId");
+        localStorage.removeItem("reconnectionToken");
       });
     } catch (error: any) {
       const toast = useToast();
       const walletStore = useWalletStore();
 
       localStorage.removeItem("roomId");
-      localStorage.removeItem("sessionId");
+      localStorage.removeItem("reconnectionToken");
 
       if (error.code === 4212) {
         toast.error(
@@ -696,7 +703,6 @@ export class Application {
 
     const timeStart = performance.now();
 
-    // console.log(`Time start: ${timeStart}`);
     Object.values(this.players).forEach((player) => {
       player.cells.forEach((cell, index) => {
         const currentCell = this.playerCellsGraphics[cell.id];
@@ -708,10 +714,22 @@ export class Application {
         currentCell.x = lerp(currentCell.x, cell.x, 11 * deltaTime);
         currentCell.y = lerp(currentCell.y, cell.y, 11 * deltaTime);
 
-        currentCell.width = lerp(currentCell.width, cell.radius * 2, 1);
-        currentCell.height = lerp(currentCell.height, cell.radius * 2, 1);
+        currentCell.width = lerp(
+          currentCell.width,
+          cell.radius * 2,
+          7 * deltaTime
+        );
+        currentCell.height = lerp(
+          currentCell.height,
+          cell.radius * 2,
+          7 * deltaTime
+        );
 
-        const fontSize = Math.max(cell.radius / 2, 16);
+        const fontSize = lerp(
+          this.playerTextGraphics[cell.id].style.fontSize,
+          Math.max(cell.radius / 2, 16),
+          7 * deltaTime
+        );
 
         this.playerTextGraphics[cell.id].x = currentCell.x;
         this.playerTextGraphics[cell.id].y = currentCell.y;
@@ -731,10 +749,20 @@ export class Application {
     const newCenterX = playerCenterX / currPlayerCellCount;
     const newCenterY = playerCenterY / currPlayerCellCount;
 
-    this.viewport.moveCenter(
-      lerp(this.viewport.center.x, newCenterX, 1),
-      lerp(this.viewport.center.y, newCenterY, 1)
-    );
+    this.lastPlayerPosition = {
+      x: newCenterX,
+      y: newCenterY,
+    };
+
+    if (
+      !useGameStore().gameSettings.isDead &&
+      !useGameStore().gameSettings.isCashedOut
+    ) {
+      this.viewport.moveCenter(
+        lerp(this.viewport.center.x, newCenterX, 7 * deltaTime),
+        lerp(this.viewport.center.y, newCenterY, 7 * deltaTime)
+      );
+    }
 
     this.room.state.massFood.forEach((massFood: MassFoodState) => {
       if (massFood.speed === 0) {
@@ -778,6 +806,17 @@ export class Application {
         (this.virus[virus.id].rotation + 0.007) % 360;
     });
 
-    // console.log(`Time end: ${performance.now() - timeStart}`);
+    this.room.state.food.forEach((food) => {
+      if (!this.food[food.id]) {
+        return;
+      }
+
+      if (food.speed === 0) {
+        return;
+      }
+
+      this.food[food.id].x = lerp(this.food[food.id].x, food.x, 10 * deltaTime);
+      this.food[food.id].y = lerp(this.food[food.id].y, food.y, 10 * deltaTime);
+    });
   }
 }

@@ -61,8 +61,6 @@ const transactionLink = computed(
 
 (() => {
   if (transactionStore.latestTransaction) {
-    processTransactionApi(transactionStore.latestTransaction.signature);
-
     transactionStore.pollTransactionUntillFound(
       transactionStore.latestTransaction.signature
     );

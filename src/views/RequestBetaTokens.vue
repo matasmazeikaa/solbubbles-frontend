@@ -36,7 +36,6 @@ import FunctionalBox from "@/components/FunctionalBox.vue";
 import { useToast } from "vue-toast-notification";
 import { ref } from "vue";
 import ButtonSpinningPender from "../components/ButtonSpinningPender.vue";
-import { useGamePoolProgram } from "@/composables/useGamePoolProgram";
 import { useBalanceStore } from "@/stores/balanceStore";
 import { TOKEN_CONFIG } from "@/constants";
 import { useTransactionStore } from "@/stores/transactionStore";
@@ -123,14 +122,12 @@ const handleRequest = async () => {
 
   tx.recentBlockhash = await latestBlockHash.blockhash;
 
-  const transactionHash = await sendAndConfirmTransaction(
+  await sendAndConfirmTransaction(
     networkStore.connection,
     tx,
     [transferAuthority],
     { commitment: "finalized" }
   );
-
-  console.log(transactionHash);
 
   await balanceStore.updateAllBalances();
 

@@ -5,18 +5,32 @@
     :is-close-visible="false"
   >
     <label class="label">Amount lost</label>
-    <Tokens class="h1 mb-24" :tokens="roomSplTokenEntryFee" />
+    <div class="h1 mb-16">
+      <Loader v-if="gameStore.gameSettings.isDeadLoading" />
+      <Tokens v-else :tokens="gameStore.player.splTokens" class="h1 mb-16" />
+    </div>
     <label class="label">Balance</label>
-    <Tokens
-      class="h1 mb-24"
-      :tokens="balanceStore.depositedTokenBalance.uiAmount"
-    />
-    <Button @click="$emit('respawn')" class="width-100 mb-16">
-      Re-enter for
+    <div class="h1 mb-16">
+      <Loader v-if="gameStore.gameSettings.isDeadLoading" />
+      <Tokens
+        v-else
+        :tokens="balanceStore.depositedTokenBalance.uiAmount"
+        class="h1 mb-16"
+      />
+    </div>
+    <Button
+      @click="$emit('respawn')"
+      class="width-100 mb-16"
+      is-lobby
+      :is-disabled="gameStore.gameSettings.isDeadLoading"
+    >
+      Re-enter for{{ " " }}
       <Tokens :tokens="roomSplTokenEntryFee" />
     </Button>
     <Button
       @click="$emit('to-lobby')"
+      :is-disabled="gameStore.gameSettings.isDeadLoading"
+      is-lobby
       title="Return to lobby"
       type="secondary"
       class="width-100"
@@ -30,16 +44,17 @@ import Button from "@/components/Button.vue";
 import { useGame } from "@/hooks/useGame";
 import Tokens from "@/components/Tokens.vue";
 import { useBalanceStore } from "@/stores/balanceStore";
+import { useGameStore } from "@/stores/game";
+import Loader from "./Loader.vue";
 
+const gameStore = useGameStore();
 const { roomSplTokenEntryFee } = useGame();
 const balanceStore = useBalanceStore();
-
-console.log(balanceStore.depositedTokenBalance);
 </script>
 
 <style lang="scss">
 .you-died {
-  background-color: rgba($color: #000000, $alpha: 0.4);
+  background-color: #161521f5 !important;
   padding: 1.6rem;
   position: absolute;
   right: 0;

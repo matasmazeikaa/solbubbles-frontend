@@ -81,7 +81,6 @@ const handleTokenDeposit = async () => {
 
     depositAmount.value = undefined;
   } catch (error) {
-    console.log(error);
     isInitiatedDeposit.value = false;
     toast.error("Token depositing failed");
   }

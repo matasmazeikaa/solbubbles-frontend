@@ -24,6 +24,7 @@
     "@solana/wallet-standard-wallet-adapter-base": "^1.1.2",
     "@solana/web3.js": "^1.90.1",
     "@trezor/connect-common": "^0.0.29",
+    "@tweenjs/tween.js": "^23.1.1",
     "@vueuse/core": "^10.9.0",
     "@wallet-standard/app": "^1.0.1",
     "@wallet-standard/base": "^1.0.1",

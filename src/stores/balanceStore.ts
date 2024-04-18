@@ -59,8 +59,6 @@ export const useBalanceStore = defineStore(
     });
 
     const updateSolBalance = async () => {
-      console.log(walletStore.wallet?.adapter.publicKey, "public key");
-
       if (!walletStore.wallet?.adapter.publicKey) {
         return;
       }
@@ -70,8 +68,6 @@ export const useBalanceStore = defineStore(
       );
 
       solLamports.value = lamports;
-
-      console.log("Balance updated", lamports);
     };
 
     async function getTokenBalanceSpl(connection, tokenAccount) {
@@ -79,7 +75,6 @@ export const useBalanceStore = defineStore(
       const amount = Number(info.amount);
       const mint = await getMint(connection, info.mint);
       const balance = amount / 10 ** mint.decimals;
-      console.log("Balance (using Solana-Web3.js): ", balance);
       return balance;
     }
 
@@ -87,10 +82,6 @@ export const useBalanceStore = defineStore(
       if (!userATA.value) {
         return;
       }
-
-      console.log("Using SPL-Token: ", userATA.value.toBase58());
-
-      // await getTokenBalanceSpl(networStore.connection, address);
 
       try {
         const info = await networStore.connection.getTokenAccountBalance(
@@ -103,7 +94,6 @@ export const useBalanceStore = defineStore(
           uiAmount: info.value.uiAmount,
           uiAmountString: info.value.uiAmountString,
         };
-        console.log(info);
       } catch (error: any) {
         console.error(error);
       }
@@ -115,6 +105,7 @@ export const useBalanceStore = defineStore(
 
         depositedTokenBalance.value = data.depositedTokens;
       } catch (error: any) {
+        walletStore.disconnect();
         console.error(error);
       }
     };

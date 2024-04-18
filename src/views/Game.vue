@@ -14,7 +14,7 @@
     v-if="gameSettings.isCashedOut"
   />
   <CashOutButton
-    v-if="!gameSettings.isCashedOut"
+    v-if="!gameSettings.isCashedOut && !gameSettings.isDead"
     class="cashout-button"
     @cash-out="handleCashout"
     :last-action-tick="player.lastActionTick"

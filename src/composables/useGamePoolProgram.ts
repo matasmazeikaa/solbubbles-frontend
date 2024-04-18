@@ -159,16 +159,11 @@ export const useGamePoolProgram = () => {
         requireAllSignatures: false,
       });
 
-      console.log(serialise.toJSON());
-      console.log(Transaction.from(serialise));
-
       try {
         const { data } = await signWithdrawTransactionUserApi({
           rawTransaction: JSON.stringify(serialise.toJSON().data),
           splLamportsWithdrawAmount: amount * LAMPORTS_PER_TOKEN,
         });
-
-        console.log(data.transactionBuffer);
 
         const deserialiseSignedTransaction = Transaction.from(
           JSON.parse(data.transactionBuffer)

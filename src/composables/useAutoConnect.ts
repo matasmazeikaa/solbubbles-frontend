@@ -25,13 +25,6 @@ export function useAutoConnect(
 
   // If autoConnect is enabled, try to connect when the wallet adapter changes and is ready.
   watchEffect(() => {
-    console.log("auto conenct");
-
-    console.log(wallet.value);
-    console.log(ready.value);
-    console.log(connected.value);
-    console.log(connecting.value);
-
     if (
       hasAttemptedToAutoConnect.value ||
       !wallet.value ||
@@ -41,8 +34,6 @@ export function useAutoConnect(
     ) {
       return;
     }
-
-    console.log("passed");
 
     (async () => {
       if (!wallet.value) return;

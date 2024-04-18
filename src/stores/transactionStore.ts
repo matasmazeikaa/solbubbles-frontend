@@ -84,9 +84,6 @@ export const useTransactionStore = defineStore(
         );
 
         removeProcessingTransaction(transactionSignature);
-
-        console.log(error);
-        console.error(error);
       }
     };
 

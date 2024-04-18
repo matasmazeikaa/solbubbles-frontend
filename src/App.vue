@@ -9,10 +9,6 @@
 <script setup lang="ts">
 import { useAppStore } from "./stores/appStore";
 
-// import { useElrondNetworkSync } from "./hooks/auth/useElrondNetworkSync";
-
-// useElrondNetworkSync();
-
 const appStore = useAppStore();
 
 appStore.initApp();

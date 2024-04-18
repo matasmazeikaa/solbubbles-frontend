@@ -13,8 +13,6 @@ export const api = axios.create({
   },
 });
 
-console.log(getJWT());
-
 api.interceptors.request.use((config) => ({
   ...config,
   headers: { ...config.headers, Authorization: `Bearer ${getJWT()}` },

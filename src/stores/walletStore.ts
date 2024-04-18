@@ -1,20 +1,15 @@
 import { defineStore } from "pinia";
 import type { Adapter, WalletName } from "@solana/wallet-adapter-base";
-import {
-  WalletAdapterNetwork,
-  WalletNotReadyError,
-} from "@solana/wallet-adapter-base";
+import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
 import type { Cluster } from "@solana/web3.js";
 import type { Ref } from "vue";
 import { computed, ref, shallowRef } from "vue";
 import {
   useAdapterListeners,
-  useAutoConnect,
   useEnvironment,
   useErrorHandler,
   useMobileWalletAdapters,
   useReadyStateListeners,
-  useSelectWalletName,
   useStandardWalletAdapters,
   useTransactionMethods,
   useUnloadingWindow,
@@ -22,7 +17,7 @@ import {
   useWrapAdaptersInWallets,
 } from "@/composables";
 import { WalletNotSelectedError } from "@/errors";
-import type { Wallet, WalletStore, WalletStoreProps } from "@/types";
+import type { Wallet, WalletStoreProps } from "@/types";
 import {
   PhantomWalletAdapter,
   SolflareWalletAdapter,
@@ -82,7 +77,6 @@ export const useWalletStore = defineStore("wallet", () => {
 
   // From raw adapters to computed list of wallets.
   const rawAdapters: Ref<Adapter[]> = shallowRef(WALLET_CONFIG.wallets);
-  console.log(rawAdapters.value);
   const rawAdaptersWithSwa = useStandardWalletAdapters(rawAdapters);
   const { isMobile, uriForAppIdentity } = useEnvironment(rawAdaptersWithSwa);
   const adapters = useMobileWalletAdapters(
@@ -169,14 +163,6 @@ export const useWalletStore = defineStore("wallet", () => {
 
   // Connect the wallet.
   const connect = async (): Promise<void> => {
-    console.log("connecting wallet");
-    console.log(connected.value);
-    console.log(connecting.value);
-    console.log(disconnecting.value);
-
-    console.log(wallet.value);
-    console.log(name.value);
-
     if (name.value) {
       select(name.value);
     }
@@ -207,10 +193,6 @@ export const useWalletStore = defineStore("wallet", () => {
 
       const { data: nonceData } = await getNonceApi(publicKey);
 
-      console.log(nonceData.nonce, "nonce");
-
-      console.log(window.location.host);
-
       const message = new SigninMessage({
         domain: window.location.host,
         publicKey,
@@ -221,8 +203,6 @@ export const useWalletStore = defineStore("wallet", () => {
 
       if (!("signMessage" in adapter))
         throw new Error("Adapter does not support signMessage");
-
-      console.log(adapter);
 
       const signature = await adapter.signMessage(encodedMessage);
       const serializedSignature = bs58.encode(signature);

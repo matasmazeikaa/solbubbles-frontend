@@ -1,5 +1,5 @@
 <template>
-  <div class="height-100">
+  <div class="height-100 container">
     <div id="game" />
     <Game :is-reconnected="isReconnected" v-if="gameSettings.isGameStart" />
 
@@ -62,7 +62,7 @@ const joinRoom = async (room: Room) => {
   isLoadingRoomConnect.value = true;
 
   try {
-    await game.connect(room.id);
+    await game.connect({ roomName: room.id });
     balanceStore.updateAllBalances();
 
     gameSettings.value.isGameStart = true;
@@ -75,13 +75,7 @@ const joinRoom = async (room: Room) => {
   }
 };
 
-const reconnect = async ({
-  roomId,
-  sessionId,
-}: {
-  roomId: string;
-  sessionId: string;
-}) => {
+const reconnect = async (reconnectionToken: string) => {
   const game = new Application();
 
   setGame(game);
@@ -89,7 +83,7 @@ const reconnect = async ({
   isLoadingRoomConnect.value = true;
 
   try {
-    await game.connect(roomId, sessionId);
+    await game.connect({ sessionId: reconnectionToken });
     gameSettings.value.isGameStart = true;
     isReconnected.value = true;
 
@@ -133,5 +127,9 @@ onBeforeMount(() => {
     max-width: 65.6rem;
     margin: 0 auto;
   }
+}
+
+.container {
+  overflow: hidden;
 }
 </style>

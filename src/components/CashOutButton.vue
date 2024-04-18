@@ -21,9 +21,22 @@ const cashOutButton = ref();
 
 const emits = defineEmits(["cash-out"]);
 
-const timer = ref<null | number>(null);
+const timer = ref<null | number>(GameConfig.cashoutCooldown);
 
 const buttonTitle = computed(() => `Cashout ${timer.value ?? ""}`);
+
+const getLastActionSecondsDiff = () => {
+  if (!lastActionTick.value) {
+    return 0;
+  }
+
+  const startDate = new Date(lastActionTick.value).getTime();
+  const endDate = new Date().getTime();
+  const diff = endDate - startDate;
+  const seconds = Math.floor((diff / 1000) % 60);
+
+  return seconds;
+};
 
 const isCashoutDisabled = computed(() => {
   if (timer.value === null) {
@@ -52,12 +65,7 @@ const startTicker = () => {
       return;
     }
 
-    const startDate = new Date(lastActionTick.value).getTime();
-    const endDate = new Date().getTime();
-    const diff = endDate - startDate;
-    const seconds = Math.floor((diff / 1000) % 60);
-
-    timer.value = GameConfig.cashoutCooldown - seconds;
+    timer.value = GameConfig.cashoutCooldown - getLastActionSecondsDiff();
 
     if (timer.value <= 0) {
       timer.value = null;
