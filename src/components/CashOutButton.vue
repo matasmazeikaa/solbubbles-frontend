@@ -10,11 +10,9 @@
 </template>
 
 <script setup lang="ts">
-import { GameConfig } from "@/config/game";
 import { useGame } from "@/hooks/useGame";
-import { computed, ref, watch } from "vue";
+import { computed, ref } from "vue";
 import Button from "./Button.vue";
-import dayjs from "dayjs";
 
 const { lastActionTick } = useGame();
 
@@ -22,33 +20,12 @@ const cashOutButton = ref();
 
 const emits = defineEmits(["cash-out"]);
 
-const timer = ref<null | number>(GameConfig.cashoutCooldown);
-
-const buttonTitle = computed(() => `Cashout ${timer.value ?? ""}`);
-
-const getLastActionSecondsDiff = () => {
-  if (!lastActionTick.value) {
-    return 0;
-  }
-
-  const startDate = dayjs(lastActionTick.value).valueOf();
-  const endDate = dayjs().valueOf();
-
-  console.log(startDate, endDate);
-  console.log(lastActionTick.value);
-
-  const diff = endDate - startDate;
-  const seconds = Math.floor((diff / 1000) % 60);
-
-  return seconds;
-};
+const buttonTitle = computed(
+  () => `Cashout ${lastActionTick.value <= 0 ? "" : lastActionTick.value}`
+);
 
 const isCashoutDisabled = computed(() => {
-  if (timer.value === null) {
-    return false;
-  }
-
-  return timer.value <= 0 ? false : true;
+  return lastActionTick.value <= 0 ? false : true;
 });
 
 const handleClick = (
@@ -63,31 +40,6 @@ const handleClick = (
   event.target.blur();
   emits("cash-out");
 };
-
-const startTicker = () => {
-  const ticker = setInterval(() => {
-    if (!lastActionTick.value) {
-      return;
-    }
-
-    timer.value = GameConfig.cashoutCooldown - getLastActionSecondsDiff();
-
-    if (timer.value <= 0) {
-      timer.value = null;
-      window.clearInterval(ticker);
-    }
-  }, 1000);
-};
-
-startTicker();
-
-watch(
-  () => lastActionTick.value,
-  () => {
-    startTicker();
-  },
-  { deep: true }
-);
 </script>
 
 <style lang="scss" scoped>

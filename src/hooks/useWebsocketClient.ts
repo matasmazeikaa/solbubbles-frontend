@@ -1,3 +1,4 @@
+import { useServersStore } from "@/stores/serversStore";
 import { Client, type RoomAvailable } from "colyseus.js";
 import { ref } from "vue";
 
@@ -10,7 +11,7 @@ const allRooms = ref<Room[]>([]);
 
 export const useWebsocketClient = () => {
   const initClient = async () => {
-    client.value = new Client(import.meta.env.VITE_WS_API_URL);
+    client.value = new Client(useServersStore().currentServerConfig.ws);
     const lobby = await client.value.joinOrCreate("lobby");
 
     lobby.onMessage("rooms", (rooms) => {

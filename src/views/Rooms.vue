@@ -15,6 +15,22 @@
       />
     </div>
     <div v-else>
+      <div class="sever-select">
+        <label class="text-white mb-8">Server:</label>
+        <select
+          :value="serversStore.currentServer"
+          @input="serversStore.changeServer"
+          class="select"
+        >
+          <option
+            v-for="(server, id) in serversStore.serverConfigs"
+            :key="id"
+            :value="id"
+          >
+            {{ id }}
+          </option>
+        </select>
+      </div>
       <h2 class="h2 h2--center mb-32">Rooms</h2>
       <p class="small text-center mb-32">
         {{ roomText }}
@@ -48,6 +64,7 @@ import { MAX_USERS_IN_ROOM } from "@/constants";
 import LockedIcon from "@/components/LockedIcon.vue";
 import { useWebsocketClient } from "@/hooks/useWebsocketClient";
 import { useBalanceStore } from "@/stores/balanceStore";
+import { useServersStore } from "@/stores/serversStore";
 import Tokens from "@/components/Tokens.vue";
 import { useWalletStore } from "@/stores/walletStore";
 
@@ -73,6 +90,7 @@ defineProps({
 const { allRooms } = useWebsocketClient();
 const walletStore = useWalletStore();
 const balanceStore = useBalanceStore();
+const serversStore = useServersStore();
 
 const reconnectionToken = ref("");
 
@@ -140,6 +158,17 @@ checkIfConnectedInRoom();
 .container {
   max-width: 123rem;
   margin: 0 auto;
+}
+
+.sever-select {
+  display: flex;
+  flex-direction: column;
+  max-width: 140px;
+
+  select {
+    color: black;
+    font-size: 16px;
+  }
 }
 
 .rooms {

@@ -14,7 +14,7 @@ import type { TopPlayerState } from "./StateTypes/TopPlayerState";
 import { useGame } from "@/hooks/useGame";
 import { useBalanceStore } from "@/stores/balanceStore";
 import { useWalletStore } from "@/stores/walletStore";
-import { TOKEN_CONFIG } from "@/constants";
+import { useServersStore } from "@/stores/serversStore";
 
 const WORLD_SIZE = 5000;
 
@@ -56,7 +56,7 @@ export class Application {
   currentX: number;
   currentY: number;
 
-  client = new Client(import.meta.env.VITE_WS_API_URL);
+  client = new Client(useServersStore().currentServerConfig.ws);
   room: Room<GameState>;
   roomName: string;
 
@@ -231,22 +231,22 @@ export class Application {
       cx =
         x +
         Math.cos(start + step * n - qtrStep * 3) *
-        (innerRadius / Math.cos(qtrStep));
+          (innerRadius / Math.cos(qtrStep));
       cy =
         y -
         Math.sin(start + step * n - qtrStep * 3) *
-        (innerRadius / Math.cos(qtrStep));
+          (innerRadius / Math.cos(qtrStep));
       dx = x + Math.cos(start + step * n - halfStep) * innerRadius;
       dy = y - Math.sin(start + step * n - halfStep) * innerRadius;
       target.quadraticCurveTo(cx, cy, dx, dy);
       cx =
         x +
         Math.cos(start + step * n - qtrStep) *
-        (innerRadius / Math.cos(qtrStep));
+          (innerRadius / Math.cos(qtrStep));
       cy =
         y -
         Math.sin(start + step * n - qtrStep) *
-        (innerRadius / Math.cos(qtrStep));
+          (innerRadius / Math.cos(qtrStep));
       dx = x + Math.cos(start + step * n) * outerRadius;
       dy = y - Math.sin(start + step * n) * outerRadius;
       target.quadraticCurveTo(cx, cy, dx, dy);
@@ -388,7 +388,6 @@ export class Application {
         if (player.id === this.room.sessionId) {
           this.isPlayerJoined = true;
           this.viewport.moveCenter(player.x, player.y);
-          lastActionTick.value = player.lastActionTick;
         }
 
         this.players[sessionId] = player;
@@ -463,8 +462,6 @@ export class Application {
 
         player.onChange(() => {
           if (player.id === this.room.sessionId && !player.isCashedOut) {
-            lastActionTick.value = player.lastActionTick;
-
             const newWidth = lerp(
               window.innerWidth,
               (window.innerWidth + player.massTotal) * 0.7,
@@ -623,7 +620,9 @@ export class Application {
         roomSplTokenEntryFee.value = data.roomSplTokenEntryFee;
       });
 
-      this.room.onMessage("pong", () => {
+      this.room.onMessage("pong", (cashoutSecondsDiff) => {
+        lastActionTick.value = cashoutSecondsDiff;
+
         this.lastPong = Date.now();
 
         this.ping.value = this.lastPong - this.lastPing;
@@ -758,10 +757,7 @@ export class Application {
       !useGameStore().gameSettings.isDead &&
       !useGameStore().gameSettings.isCashedOut
     ) {
-      this.viewport.moveCenter(
-        lerp(this.viewport.center.x, newCenterX, 7 * deltaTime),
-        lerp(this.viewport.center.y, newCenterY, 7 * deltaTime)
-      );
+      this.viewport.moveCenter(newCenterX, newCenterY);
     }
 
     this.room.state.massFood.forEach((massFood: MassFoodState) => {
